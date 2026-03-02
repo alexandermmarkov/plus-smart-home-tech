@@ -15,7 +15,6 @@ import ru.yandex.practicum.service.EventsService;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(path = "/events")
-@Validated
 @Slf4j
 public class EventsController {
     private final EventsService eventsService;

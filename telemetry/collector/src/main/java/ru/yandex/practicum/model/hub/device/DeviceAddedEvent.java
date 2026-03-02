@@ -13,9 +13,9 @@ import lombok.*;
 @NoArgsConstructor
 public class DeviceAddedEvent extends HubEvent {
     @NotBlank
-    String id;
+    private String id;
     @NotNull
-    DeviceType deviceType;
+    private DeviceType deviceType;
 
     @Override
     public HubEventType getType() {
