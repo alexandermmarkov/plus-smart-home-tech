@@ -2,7 +2,6 @@ package ru.yandex.practicum.mapper;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.exceptions.UnsupportedEventTypeException;
 import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.model.sensor.*;
 
@@ -54,8 +53,9 @@ public class SensorEventAvroMapper {
                     .setTemperatureF(e.getTemperatureF())
                     .build();
 
-            default -> throw new UnsupportedEventTypeException(
-                    "No handler for sensor event type: " + event.getClass().getSimpleName());
+            default -> throw new IllegalArgumentException(
+                    "No handler for sensor event type: " + event.getClass().getSimpleName()
+            );
         };
     }
 }
