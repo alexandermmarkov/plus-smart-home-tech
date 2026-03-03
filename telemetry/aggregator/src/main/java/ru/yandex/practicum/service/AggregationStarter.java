@@ -24,7 +24,7 @@ import java.util.*;
 public class AggregationStarter {
     private final KafkaConfig kafkaConfig;
     private final SnapshotService snapshotService;
-    private static final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
+    private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
 
     public void start() {
         log.info("Старт");
@@ -66,7 +66,7 @@ public class AggregationStarter {
         }
     }
 
-    private static void manageOffsets(ConsumerRecord<String, SensorEventAvro> record,
+    private void manageOffsets(ConsumerRecord<String, SensorEventAvro> record,
                                       int count, KafkaConsumer<String, SensorEventAvro> consumer) {
         // обновляем текущий оффсет для топика-партиции
         currentOffsets.put(
