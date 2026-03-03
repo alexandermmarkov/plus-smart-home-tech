@@ -8,10 +8,14 @@ import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.model.Action;
 import ru.yandex.practicum.model.Condition;
 import ru.yandex.practicum.model.Scenario;
+import ru.yandex.practicum.model.Sensor;
 import ru.yandex.practicum.repository.ActionRepository;
 import ru.yandex.practicum.repository.ConditionRepository;
 import ru.yandex.practicum.repository.ScenarioRepository;
 import ru.yandex.practicum.repository.SensorRepository;
+
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -28,41 +32,44 @@ public class ScenarioService {
         String name = scenarioAddedEventAvro.getName();
         log.info("Добавление сценария {}, хаб {}", name, hubId);
 
-        // Проверить, что сценарий с таким именем в хабе уже существует
         if (scenarioRepository.findByHubIdAndName(hubId, name).isPresent()) {
             log.warn("Сценарий {} уже существует в хабе {}", name, hubId);
             return;
         }
+
+        Set<String> hubSensorIds = sensorRepository.findAllByHubId(hubId).stream()
+                .map(Sensor::getId)
+                .collect(Collectors.toSet());
 
         Scenario scenario = Scenario.builder()
                 .hubId(hubId)
                 .name(name)
                 .build();
 
-        // Обработка условий
-        addConditions(scenarioAddedEventAvro, hubId, scenario);
-        // Обработка действий
-        addActions(scenarioAddedEventAvro, hubId, scenario);
+        addConditions(scenarioAddedEventAvro, hubSensorIds, scenario);
+        addActions(scenarioAddedEventAvro, hubSensorIds, scenario);
 
         scenarioRepository.save(scenario);
         log.info("Сценарий {} для хаба {} добавлен", name, hubId);
-
     }
 
-    private void addConditions(ScenarioAddedEventAvro scenarioAddedEventAvro, String hubId, Scenario scenario) {
+    private void addConditions(ScenarioAddedEventAvro scenarioAddedEventAvro,
+                               Set<String> hubSensorIds,
+                               Scenario scenario) {
         for (ScenarioConditionAvro scenarioConditionAvro : scenarioAddedEventAvro.getConditions()) {
             String sensorId = scenarioConditionAvro.getSensorId();
-            if (sensorRepository.findByIdAndHubId(sensorId, hubId).isEmpty()) {
+
+            if (!hubSensorIds.contains(sensorId)) {
                 log.warn("Несуществующий сенсор: {}", sensorId);
                 continue;
             }
 
-            if (!isValidEnum(scenarioConditionAvro.getType(), ConditionTypeAvro.class)) {
+            if (isInvalidEnum(scenarioConditionAvro.getType(), ConditionTypeAvro.class)) {
                 log.warn("Недопустимый тип условия: {}", scenarioConditionAvro.getType());
                 continue;
             }
 
-            if (!isValidEnum(scenarioConditionAvro.getOperation(), ConditionOperationAvro.class)) {
+            if (isInvalidEnum(scenarioConditionAvro.getOperation(), ConditionOperationAvro.class)) {
                 log.warn("Недопустимая операция условия: {}", scenarioConditionAvro.getOperation());
                 continue;
             }
@@ -79,15 +86,18 @@ public class ScenarioService {
         }
     }
 
-    private void addActions(ScenarioAddedEventAvro scenarioAddedEventAvro, String hubId, Scenario scenario) {
+    private void addActions(ScenarioAddedEventAvro scenarioAddedEventAvro,
+                            Set<String> hubSensorIds,
+                            Scenario scenario) {
         for (DeviceActionAvro deviceActionAvro : scenarioAddedEventAvro.getActions()) {
             String sensorId = deviceActionAvro.getSensorId();
-            if (sensorRepository.findByIdAndHubId(sensorId, hubId).isEmpty()) {
+
+            if (!hubSensorIds.contains(sensorId)) {
                 log.warn("Несуществующий сенсор: {}", sensorId);
                 continue;
             }
 
-            if (!isValidEnum(deviceActionAvro.getType(), ActionTypeAvro.class)) {
+            if (isInvalidEnum(deviceActionAvro.getType(), ActionTypeAvro.class)) {
                 log.warn("Недопустимый тип действия: {}", deviceActionAvro.getType());
                 continue;
             }
@@ -101,26 +111,31 @@ public class ScenarioService {
         }
     }
 
-    private <T extends Enum<T>> boolean isValidEnum(Object value, Class<T> enumClass) {
-        if (value == null) return false;
+    private <T extends Enum<T>> boolean isInvalidEnum(Object value, Class<T> enumClass) {
+        if (value == null) return true;
         try {
             Enum.valueOf(enumClass, value.toString());
-            return true;
-        } catch (IllegalArgumentException e) {
             return false;
+        } catch (IllegalArgumentException e) {
+            return true;
         }
     }
 
     private Integer mapValue(Object value) {
-        if (value instanceof Integer) {
-            return (Integer) value;
-        } else if (value instanceof Boolean) {
-            return (Boolean) value ? 1 : 0;
-        } else if (value == null) {
-            return null;
-        } else {
-            log.warn("Неподдерживаемый тип value в условии: {}", value.getClass());
-            return null;
+        switch (value) {
+            case Integer i -> {
+                return i;
+            }
+            case Boolean b -> {
+                return b ? 1 : 0;
+            }
+            case null -> {
+                return null;
+            }
+            default -> {
+                log.warn("Неподдерживаемый тип value в условии: {}", value.getClass());
+                return null;
+            }
         }
     }
 
