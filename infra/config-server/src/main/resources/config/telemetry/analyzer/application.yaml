@@ -1,0 +1,54 @@
+kafka:
+  analyzer:
+    bootstrap-servers: localhost:9092
+    consumers:
+      consumer-hub:
+        topic: telemetry.hubs.v1
+        key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value-deserializer: ru.yandex.practicum.kafka.serializer.HubEventDeserializer
+        group-id: analyzer-hub-group
+        client-id: consumer-hub-1
+        properties:
+          fetch.min.bytes: 1
+          max.poll.records: 100
+          enable.auto.commit: false
+          fetch.max.wait.ms: 1000
+          max.partition.fetch.bytes: 1048576
+      consumer-snapshot:
+        topic: telemetry.snapshots.v1
+        key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value-deserializer: ru.yandex.practicum.kafka.serializer.SensorSnapshotDeserializer
+        group-id: analyzer-snapshot-group
+        client-id: consumer-snapshot-1
+        properties:
+          fetch.min.bytes: 1
+          max.poll.records: 100
+          enable.auto.commit: false
+          fetch.max.wait.ms: 1000
+          max.partition.fetch.bytes: 1048576
+
+grpc:
+  client:
+    hub-router:
+      address: static://localhost:59090
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/telemetry_analyzer
+    username: dbuser
+    password: "12345"
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: always
