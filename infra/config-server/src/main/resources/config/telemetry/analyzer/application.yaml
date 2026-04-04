@@ -37,7 +37,7 @@ grpc:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/telemetry_analyzer
+    url: jdbc:postgresql://localhost:5432/smart_home
     username: dbuser
     password: "12345"
     driver-class-name: org.postgresql.Driver
