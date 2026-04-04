@@ -40,7 +40,7 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_DB=telemetry_analyzer
+      - POSTGRES_DB=smart_home
       - POSTGRES_USER=dbuser
       - POSTGRES_PASSWORD=12345
     healthcheck:
