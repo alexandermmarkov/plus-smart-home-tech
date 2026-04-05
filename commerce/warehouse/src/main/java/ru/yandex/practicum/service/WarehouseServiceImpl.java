@@ -4,11 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.yandex.practicum.dto.AddProductToWarehouseRequest;
-import ru.yandex.practicum.dto.AddressDto;
-import ru.yandex.practicum.dto.BookedProductsDto;
-import ru.yandex.practicum.dto.NewProductInWarehouseRequest;
-import ru.yandex.practicum.dto.ShoppingCartDto;
+import ru.yandex.practicum.dto.*;
 import ru.yandex.practicum.exceptions.NoSpecifiedProductInWarehouseException;
 import ru.yandex.practicum.exceptions.ProductInShoppingCartLowQuantityInWarehouseException;
 import ru.yandex.practicum.exceptions.SpecifiedProductAlreadyInWarehouseException;
@@ -18,9 +14,7 @@ import ru.yandex.practicum.repository.WarehouseProductRepository;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +22,7 @@ import java.util.UUID;
 public class WarehouseServiceImpl implements WarehouseService {
     private final WarehouseProductRepository warehouseRepository;
     private final WarehouseProductMapper warehouseMapper;
+
     private static final String[] ADDRESSES = new String[]{"ADDRESS_1", "ADDRESS_2"};
     private static final String CURRENT_ADDRESS =
             ADDRESSES[Random.from(new SecureRandom()).nextInt(0, ADDRESSES.length)];
@@ -43,15 +38,28 @@ public class WarehouseServiceImpl implements WarehouseService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BookedProductsDto checkAvailabilityForCart(ShoppingCartDto shoppingCartDto) {
         BigDecimal totalWeight = BigDecimal.ZERO;
         BigDecimal totalVolume = BigDecimal.ZERO;
         boolean isAnyFragile = false;
 
-        for (Map.Entry<UUID, Integer> entry : shoppingCartDto.getProducts().entrySet()) {
+        Map<UUID, Integer> cartProducts = shoppingCartDto.getProducts();
+        Set<UUID> productIds = cartProducts.keySet();
+
+        Map<UUID, WarehouseProduct> warehouseProductsMap = getWarehouseProductsMap(productIds);
+
+        for (Map.Entry<UUID, Integer> entry : cartProducts.entrySet()) {
             UUID productId = entry.getKey();
             Integer requestedQuantity = entry.getValue();
-            WarehouseProduct product = checkIdExistsOrThrow(productId);
+
+            WarehouseProduct product = warehouseProductsMap.get(productId);
+            if (product == null) {
+                throw new NoSpecifiedProductInWarehouseException(
+                        "Продукт с ID " + productId + " не существует"
+                );
+            }
+
             if (product.getQuantity() < requestedQuantity) {
                 throw new ProductInShoppingCartLowQuantityInWarehouseException(
                         String.format("Не хватает товара %s. В корзине: %d, доступно: %d",
@@ -59,6 +67,7 @@ public class WarehouseServiceImpl implements WarehouseService {
             }
             BigDecimal qty = new BigDecimal(requestedQuantity);
             totalWeight = totalWeight.add(product.getWeight().multiply(qty));
+
             BigDecimal volume = product.getWidth()
                     .multiply(product.getHeight())
                     .multiply(product.getDepth())
@@ -93,9 +102,19 @@ public class WarehouseServiceImpl implements WarehouseService {
     }
 
     private WarehouseProduct checkIdExistsOrThrow(UUID productId) {
-        log.info("Проверка существования productId");
-        WarehouseProduct product = warehouseRepository.findById(productId).orElseThrow(() ->
-                new NoSpecifiedProductInWarehouseException("Продукт с ID " + productId + " не существует"));
-        return product;
+        log.info("Проверка существования productId={}", productId);
+        return warehouseRepository.findById(productId).orElseThrow(() ->
+                new NoSpecifiedProductInWarehouseException(
+                        "Продукт с ID " + productId + " не существует"
+                )
+        );
+    }
+
+    private Map<UUID, WarehouseProduct> getWarehouseProductsMap(Set<UUID> productIds) {
+        Map<UUID, WarehouseProduct> productsMap = new HashMap<>();
+        for (WarehouseProduct product : warehouseRepository.findAllById(productIds)) {
+            productsMap.put(product.getProductId(), product);
+        }
+        return productsMap;
     }
 }
