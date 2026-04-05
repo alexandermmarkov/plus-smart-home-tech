@@ -39,7 +39,7 @@ public class ShoppingCartServiceImpl implements ShoppingCartService {
         usernameNotEmptyOrThrow(username);
 
         if (products == null || products.isEmpty()) {
-            throw new NoProductsInShoppingCartException("Пустой список товаров для добавления в корзину");
+            throw new NoProductsInShoppingCartException("Список товаров для добавления в корзину не должен быть пустым");
         }
 
         ShoppingCart cart = cartRepository.findByUsernameAndActiveTrue(username)
