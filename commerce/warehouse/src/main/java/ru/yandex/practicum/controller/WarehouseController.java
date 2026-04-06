@@ -3,25 +3,19 @@ package ru.yandex.practicum.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import ru.yandex.practicum.client.WarehouseClient;
-import ru.yandex.practicum.dto.AddProductToWarehouseRequest;
-import ru.yandex.practicum.dto.AddressDto;
-import ru.yandex.practicum.dto.BookedProductsDto;
-import ru.yandex.practicum.dto.NewProductInWarehouseRequest;
-import ru.yandex.practicum.dto.ShoppingCartDto;
+import org.springframework.web.bind.annotation.*;
+import ru.yandex.practicum.contract.WarehouseContract;
+import ru.yandex.practicum.dto.*;
 import ru.yandex.practicum.service.WarehouseService;
+
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping(path = "/api/v1/warehouse")
 @RequiredArgsConstructor
 @Slf4j
-public class WarehouseController implements WarehouseClient {
+public class WarehouseController implements WarehouseContract {
     private final WarehouseService warehouseService;
 
     @Override
@@ -56,6 +50,33 @@ public class WarehouseController implements WarehouseClient {
         AddressDto addressDto = warehouseService.getWarehouseAddress();
         log.info("Адрес склада {}", addressDto);
         return addressDto;
+    }
+
+    @Override
+    @PostMapping("/shipped")
+    public void ShippedToDelivery(@Valid @RequestBody ShippedToDeliveryRequest deliveryRequest) {
+        log.info("Передать товары {} в доставку", deliveryRequest);
+        warehouseService.shippedToDelivery(deliveryRequest);
+        log.info("Товары {} переданы в доставку", deliveryRequest);
+    }
+
+    @Override
+    @PostMapping("/assembly")
+    public BookedProductsDto AssemblyToDelivery(@Valid @RequestBody AssemblyProductsForOrderRequest assemblyRequest) {
+        log.info("Собрать товары {} к заказу {} для подготовки к отправке",
+                assemblyRequest.getProducts(), assemblyRequest.getOrderId());
+        BookedProductsDto bookedProductsDto = warehouseService.assemblyToDelivery(assemblyRequest);
+        log.info("Товары {} к заказу {} для подготовки к отправке собраны: {}",
+                assemblyRequest.getProducts(), assemblyRequest.getOrderId(), bookedProductsDto);
+        return null;
+    }
+
+    @Override
+    @PostMapping("/return")
+    public void returnProducts(@Valid @RequestBody Map<UUID, Integer> products) {
+        log.info("Вернуть товары на склад {}", products);
+
+
     }
 
 }

@@ -11,7 +11,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class ErrorHandler {
 
     @ExceptionHandler({ProductNotFoundException.class,
-            CartNotFoundException.class
+            CartNotFoundException.class,
+            NoDeliveryFoundException.class
     })
     public ResponseEntity<ErrorMessage> notFoundException(Exception exception) {
         log.error(exception.getMessage(), exception);
@@ -22,7 +23,8 @@ public class ErrorHandler {
 
     @ExceptionHandler({IllegalArgumentException.class,
             NoSpecifiedProductInWarehouseException.class,
-            SpecifiedProductAlreadyInWarehouseException.class
+            SpecifiedProductAlreadyInWarehouseException.class,
+            ProductInShoppingCartLowQuantityInWarehouseException.class
     })
     public ResponseEntity<ErrorMessage> illegalArgumentException(Exception exception) {
         log.error(exception.getMessage(), exception);
