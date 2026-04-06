@@ -3,12 +3,7 @@ package ru.yandex.practicum.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.contract.DeliveryContract;
 import ru.yandex.practicum.dto.DeliveryDto;
 import ru.yandex.practicum.dto.OrderDto;
@@ -21,7 +16,6 @@ import java.util.UUID;
 @RequestMapping(path = "/api/v1/delivery")
 @RequiredArgsConstructor
 @Slf4j
-@Validated
 public class DeliveryController implements DeliveryContract {
     private final DeliveryService deliveryService;
 

@@ -36,6 +36,7 @@ public class OrderMapper {
                 })
                 .toList();
     }
+
     public Map<UUID, Integer> productsToMap(List<OrderItem> products) {
         return products.stream()
                 .collect(Collectors.toMap(

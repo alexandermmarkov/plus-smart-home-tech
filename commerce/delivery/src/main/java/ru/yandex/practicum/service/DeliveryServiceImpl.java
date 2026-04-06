@@ -72,28 +72,74 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Override
     public BigDecimal getDeliveryCost(OrderDto orderDto) {
         // Рассчитать стоимость доставки заказа
-        Delivery delivery = getDeliveryByOrderIdOrThrow(orderDto.getOrderId());
+        UUID orderId = orderDto.getOrderId();
+
+        log.info("Начало расчета стоимости доставки для заказа {}, weight={}, volume={}, fragile={}",
+                orderId,
+                orderDto.getDeliveryWeight(),
+                orderDto.getDeliveryVolume(),
+                orderDto.getFragile());
+
+        Delivery delivery = getDeliveryByOrderIdOrThrow(orderId);
+        AddressDto warehouseAddress = warehouseClient.getWarehouseAddress();
+
+        log.info("Заказ {}. Адрес склада: country={}, city={}, street={}, house={}, flat={}",
+                orderId,
+                warehouseAddress.getCountry(),
+                warehouseAddress.getCity(),
+                warehouseAddress.getStreet(),
+                warehouseAddress.getHouse(),
+                warehouseAddress.getFlat());
+
         BigDecimal totalCost = coefficients.getBaseCost();
+        log.info("Заказ {}. Базовая стоимость доставки: {}", orderId, totalCost);
+
         BigDecimal warehouseAddrCoef = BigDecimal.ZERO;
-        if (isWarehouseAddressContains("ADDRESS_1")) {
+        if (isWarehouseAddressContains(warehouseAddress, "ADDRESS_1")) {
             warehouseAddrCoef = coefficients.getAddress1();
-        } else if (isWarehouseAddressContains("ADDRESS_2")) {
+            log.info("Заказ {}. Применен коэффициент для ADDRESS_1: {}", orderId, warehouseAddrCoef);
+        } else if (isWarehouseAddressContains(warehouseAddress, "ADDRESS_2")) {
             warehouseAddrCoef = coefficients.getAddress2();
+            log.info("Заказ {}. Применен коэффициент для ADDRESS_2: {}", orderId, warehouseAddrCoef);
+        } else {
+            log.info("Заказ {}. Адресный коэффициент не применен", orderId);
         }
+
         totalCost = totalCost.add(totalCost.multiply(warehouseAddrCoef));
-        if (orderDto.getFragile()) {
+        log.info("Заказ {}. Стоимость после применения коэффициента адреса склада: {}", orderId, totalCost);
+
+        if (Boolean.TRUE.equals(orderDto.getFragile())) {
             totalCost = totalCost.add(totalCost.multiply(coefficients.getFragile()));
+            log.info("Заказ {}. Применена надбавка за хрупкость {}, стоимость: {}",
+                    orderId, coefficients.getFragile(), totalCost);
+        } else {
+            log.info("Заказ {}. Надбавка за хрупкость не применена", orderId);
         }
-        totalCost = totalCost.add(coefficients.getWeight().multiply(BigDecimal.valueOf(orderDto.getDeliveryWeight())));
-        totalCost = totalCost.add(coefficients.getVolume().multiply(BigDecimal.valueOf(orderDto.getDeliveryVolume())));
-        if (!delivery.getFromAddress().getStreet().equals(warehouseClient.getWarehouseAddress().getStreet())) {
-            totalCost = totalCost.add(coefficients.getDeliveryAddress().multiply(totalCost));
+
+        BigDecimal weightCost = coefficients.getWeight().multiply(BigDecimal.valueOf(orderDto.getDeliveryWeight()));
+        totalCost = totalCost.add(weightCost);
+        log.info("Заказ {}. Надбавка за вес: {}, стоимость после надбавки: {}",
+                orderId, weightCost, totalCost);
+
+        BigDecimal volumeCost = coefficients.getVolume().multiply(BigDecimal.valueOf(orderDto.getDeliveryVolume()));
+        totalCost = totalCost.add(volumeCost);
+        log.info("Заказ {}. Надбавка за объем: {}, стоимость после надбавки: {}",
+                orderId, volumeCost, totalCost);
+
+        if (!delivery.getFromAddress().getStreet().equals(warehouseAddress.getStreet())) {
+            BigDecimal addressExtra = coefficients.getDeliveryAddress().multiply(totalCost);
+            totalCost = totalCost.add(addressExtra);
+            log.info("Заказ {}. Применена надбавка за различие адреса доставки и адреса склада: {}, стоимость: {}",
+                    orderId, addressExtra, totalCost);
+        } else {
+            log.info("Заказ {}. Надбавка за различие адресов не применена", orderId);
         }
+
+        log.info("Итоговая стоимость доставки для заказа {}: {}", orderId, totalCost);
         return totalCost;
     }
 
-    private boolean isWarehouseAddressContains(String str) {
-        AddressDto address = warehouseClient.getWarehouseAddress();
+    private boolean isWarehouseAddressContains(AddressDto address, String str) {
         return (address.getStreet().contains(str)
                 || address.getCountry().contains(str)
                 || address.getCity().contains(str)
